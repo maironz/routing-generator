@@ -186,6 +186,9 @@ class Adapter:
         if not agent_list:
             agent_list = ["developer", "documentazione", "orchestratore"]
 
+        tech_label = ", ".join(profile.tech_stack) if profile.tech_stack else "non specificato"
+        domains = profile.domain_keywords or ["general"]
+
         routing_map: dict[str, Any] = {}
         for i, domain in enumerate(profile.domain_keywords):
             scenario_id = domain.lower().replace(" ", "_")
@@ -218,10 +221,23 @@ class Adapter:
             indent=2, ensure_ascii=True,
         )
         for agent in agent_list:
+            domain_line = ", ".join(domains)
             result[f".github/esperti/esperto_{agent}.md"] = (
-                f"# Esperto {agent.capitalize()} -- {profile.project_name}\n\n"
-                f"## Identita\nAgente {agent} per il progetto {profile.project_name}.\n\n"
-                f"## Stack\n{', '.join(profile.tech_stack) or 'da definire'}\n"
+                f"# Esperto {agent} - {profile.project_name}\n\n"
+                f"## Missione\n"
+                f"Guidare le decisioni tecniche per l'area {agent} del progetto {profile.project_name}.\n\n"
+                f"## Ambito Operativo\n"
+                f"- Dominio principale: {agent}\n"
+                f"- Domini progetto: {domain_line}\n"
+                f"- Stack di riferimento: {tech_label}\n\n"
+                f"## Workflow\n"
+                f"1. Analizza la richiesta e identifica vincoli e priorita.\n"
+                f"2. Proponi una soluzione minima e verificabile.\n"
+                f"3. Evidenzia rischi, test e impatti su file/configurazioni.\n\n"
+                f"## Deliverable Attesi\n"
+                f"- Piano operativo sintetico\n"
+                f"- Modifiche implementative coerenti con il routing-map\n"
+                f"- Verifica finale con test/check pertinenti\n"
             )
         result[".github/AGENT_REGISTRY.md"] = self._gen_agent_registry(routing_map, profile, agent_list)
         result[".github/copilot-instructions.md"] = self._gen_copilot_instructions(routing_map, profile, agent_list)
@@ -315,18 +331,27 @@ class Adapter:
         self, routing_map: dict, profile: ProjectProfile, agents: list[str]
     ) -> str:
         scenario_count = len(routing_map)
+        scenario_by_agent = {
+            a: sum(1 for s in routing_map.values() if s.get("agent") == a)
+            for a in agents
+        }
         rows = "\n".join(
-            f"| {a} | {profile.project_name} domain | 1.0.0 | STABLE | - "
+            f"| {a} | {profile.project_name} domain | 1.0.0 | STABLE | {scenario_by_agent.get(a, 0)} "
             f"| .github/esperti/esperto_{a}.md |"
             for a in agents
         )
         return (
             f"# Agent Registry -- {profile.project_name}\n\n"
-            f"| Agent | Domain | Version | Status | Capabilities | File |\n"
-            f"|-------|--------|---------|--------|-------------|------|\n"
+            f"## Panoramica\n"
+            f"- Agenti totali: {len(agents)}\n"
+            f"- Scenari instradati: {scenario_count}\n"
+            f"- Stack: {', '.join(profile.tech_stack) or 'generic'}\n\n"
+            f"## Tabella Agenti\n"
+            f"| Agent | Domain | Version | Status | Scenari | File |\n"
+            f"|-------|--------|---------|--------|---------|------|\n"
             f"{rows}\n\n"
-            f"**Routing**: `.github/routing-map.json` -- {scenario_count} scenari "
-            f"| {len(agents)} agenti\n"
+            f"## Routing\n"
+            f"Fonte: `.github/routing-map.json`\n"
         )
 
     def _gen_copilot_instructions(
@@ -340,23 +365,45 @@ class Adapter:
         return (
             f"# {profile.project_name} -- AI Dispatcher\n\n"
             f"## DISPATCHER\n\n"
-            f"Run `python .github/router.py --stats` at session start.\n\n"
+            f"### Session bootstrap\n"
+            f"1. Run `python .github/router.py --stats` at session start.\n"
+            f"2. Show header with model/agent/priority/routing summary.\n"
+            f"3. Route each user request before implementing changes.\n\n"
             f"### Agents\n| Agent | Domain |\n|-------|--------|\n{agent_table}\n\n"
             f"### Key scenarios\n{scenario_list}\n\n"
             f"### Router commands\n"
             f"```\n"
             f"python .github/router.py --direct \"<query>\"\n"
+            f"python .github/router.py --follow-up \"<query>\"\n"
             f"python .github/router.py --stats\n"
             f"python .github/router.py --audit\n"
             f"```\n\n"
             f"## PROJECT\n\n"
-            f"**{profile.project_name}** | Stack: {', '.join(profile.tech_stack) or 'generic'}\n"
+            f"**{profile.project_name}** | Stack: {', '.join(profile.tech_stack) or 'generic'}\n\n"
+            f"## Postflight\n"
+            f"- Verify chosen agent is coherent with request\n"
+            f"- Run relevant tests before closing task\n"
+            f"- Keep documentation and routing artifacts aligned\n"
         )
 
     def _gen_subagent_brief(self, profile: ProjectProfile, agents: list[str]) -> str:
+        stack = ", ".join(profile.tech_stack) if profile.tech_stack else "generic"
+        domain_list = ", ".join(profile.domain_keywords) if profile.domain_keywords else "general"
         return (
             f"# {profile.project_name} -- Subagent Brief\n\n"
-            f"Stack: {', '.join(profile.tech_stack) or 'generic'}\n\n"
-            f"Agents: {', '.join(agents)}\n\n"
-            f"Routing: `.github/routing-map.json`\n"
+            f"## Contesto\n"
+            f"- Stack: {stack}\n"
+            f"- Domini: {domain_list}\n"
+            f"- Routing: `.github/routing-map.json`\n\n"
+            f"## Agenti Disponibili\n"
+            + "\n".join(f"- {a}" for a in agents)
+            + "\n\n"
+            f"## Template di Incarico\n"
+            f"Obiettivo: <descrizione sintetica>\n\n"
+            f"Vincoli:\n"
+            f"- <vincolo 1>\n"
+            f"- <vincolo 2>\n\n"
+            f"Output richiesto:\n"
+            f"- <modifiche>\n"
+            f"- <test/verifiche>\n"
         )

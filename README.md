@@ -187,6 +187,34 @@ python .github/router.py --direct "ottimizza query postgres per report mensile"
 
 L'AI riceve **solo** il file `esperto_database.md` — non tutto il contesto del progetto.
 
+### Bootstrap sessione AI (obbligatorio)
+
+Per evitare risposte non allineate allo stato del router, all'inizio di ogni sessione operativa esegui:
+
+```bash
+python .github/router.py --stats
+```
+
+Poi pubblica sempre un header iniziale con:
+
+```text
+🤖 GPT-5.3-Codex | Agente: <agent> | Priorita': <priority> | Routing: <stats + stato>
+```
+
+Esempio reale di stato router:
+
+```text
+Routing: 15scn/184kw | overlap:2.7% | router:574L | map:7.4KB | [OK] OK
+```
+
+Per ogni nuova richiesta, instrada prima il task:
+
+```bash
+python .github/router.py --direct "<query>"
+# oppure
+python .github/router.py --follow-up "<query>"
+```
+
 ---
 
 ## Backup e ripristino

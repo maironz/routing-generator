@@ -292,6 +292,43 @@ def test_adapt_scratch_no_pattern_id(adapter_kb: Path, tmp_path: Path) -> None:
     assert "troubleshooting" in routing
 
 
+def test_adapt_scratch_generates_structured_expert_markdown(adapter_kb: Path, tmp_path: Path) -> None:
+    profile = ProjectProfile(
+        project_name="scratch",
+        target_path=tmp_path,
+        pattern_id="",
+        tech_stack=["python", "fastapi"],
+        domain_keywords=["api"],
+    )
+    adapter = Adapter(adapter_kb)
+    result = adapter.adapt(profile)
+
+    expert_md = result[".github/esperti/esperto_developer.md"]
+    assert "## Missione" in expert_md
+    assert "## Ambito Operativo" in expert_md
+    assert "## Workflow" in expert_md
+    assert "## Deliverable Attesi" in expert_md
+
+
+def test_generated_registry_contains_overview_and_scenario_column(adapter_kb: Path, base_profile: ProjectProfile) -> None:
+    adapter = Adapter(adapter_kb)
+    result = adapter.adapt(base_profile)
+
+    registry = result[".github/AGENT_REGISTRY.md"]
+    assert "## Panoramica" in registry
+    assert "| Agent | Domain | Version | Status | Scenari | File |" in registry
+
+
+def test_generated_subagent_brief_contains_task_template(adapter_kb: Path, base_profile: ProjectProfile) -> None:
+    adapter = Adapter(adapter_kb)
+    result = adapter.adapt(base_profile)
+
+    brief = result[".github/subagent-brief.md"]
+    assert "## Contesto" in brief
+    assert "## Agenti Disponibili" in brief
+    assert "## Template di Incarico" in brief
+
+
 # ---------------------------------------------------------------------------
 # adapt_routing_map unit test
 # ---------------------------------------------------------------------------
