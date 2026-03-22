@@ -16,7 +16,7 @@
 **Genera automaticamente un sistema di routing AI semantico per qualsiasi progetto.**
 
 [![Python](https://img.shields.io/badge/python-3.12+-blue?logo=python&logoColor=white)](https://python.org)
-[![Tests](https://img.shields.io/badge/tests-77%2F77-brightgreen?logo=pytest&logoColor=white)](tests/)
+[![Tests](https://img.shields.io/badge/tests-82%2F82-brightgreen?logo=pytest&logoColor=white)](tests/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Stdlib only](https://img.shields.io/badge/core-stdlib%20only-orange)](pyproject.toml)
 [![Works with](https://img.shields.io/badge/works%20with-Copilot%20%7C%20Claude%20%7C%20Cursor-blueviolet)](README.md)
@@ -215,6 +215,28 @@ python .github/router.py --direct "<query>"
 python .github/router.py --follow-up "<query>"
 ```
 
+### Policy di esplorazione repo
+
+Il routing via MCP e router CLI non e' una sandbox blindata: e' un filtro operativo iniziale.
+
+Regola consigliata:
+
+1. Parti sempre dai file instradati dal router
+2. Mantieni scope ridotto se la confidence e' sopra soglia
+3. Allarga all'intero repo solo come fallback controllato
+
+Il router espone ora una policy `repo_exploration` con confidence gate esplicito:
+
+- `allowed: false` quando il match e' sufficientemente affidabile
+- `allowed: true` quando non c'e' match, il routing e' ambiguo, oppure la confidence e' sotto soglia
+
+Trigger ammessi per passare alla ricerca repo-wide:
+
+- nessuno scenario matchato
+- routing ambiguo
+- confidence sotto soglia
+- file instradati insufficienti o incoerenti con il repo reale
+
 ---
 
 ## Backup e ripristino
@@ -273,7 +295,7 @@ Puoi anche rinominare gli agenti via `RENAME_<AGENT>` nei `template_vars`.
 ## Sviluppo e test
 
 ```bash
-pytest                                         # tutti i test (77/77)
+pytest                                         # tutti i test (82/82)
 pytest --cov=rgen --cov-report=term-missing   # con coverage
 pytest tests/test_cli.py -v                   # integration test
 ```
@@ -298,7 +320,7 @@ routing-generator/
 │   ├── router_planner.py   <- integrazione planner
 │   ├── interventions.py    <- memoria SQLite+FTS5
 │   └── mcp_server.py       <- MCP server 5 tools
-└── tests/                  <- 77 test, tutti con tmp_path
+└── tests/                  <- 82 test, tutti con tmp_path
 ```
 
 ---
@@ -313,7 +335,9 @@ pip install mcp[cli]>=1.0.0
 python .github/mcp_server.py
 ```
 
-5 tools disponibili: `route_query`, `get_expert`, `list_scenarios`, `router_stats`, `audit_coverage`.
+5 tools disponibili: `route_query`, `search_history`, `log_intervention`, `get_stats`, `audit_coverage`.
+
+`route_query` restituisce anche la policy `repo_exploration`, utile per decidere se restare nei file instradati o aprire la ricerca all'intero repository.
 
 ---
 
