@@ -29,6 +29,7 @@ dello stesso task (es. "aggiorna README dopo step completato").
 2. Agente coerente con il task
 3. Test verdi prima di dichiarare lo step completato
 4. README tabella step aggiornata
+5. **Se modificato `core/`** → propagare ai consumer: `rgen --update --target <path>` per ogni progetto in «Progetti consumer»
 
 ---
 
@@ -75,6 +76,14 @@ di routing AI per qualsiasi progetto, partendo da pattern esistenti.
 - **Backup sempre** — BackupEngine attivo prima di ogni write su disco
 - **tmp_path nei test** — mai scrivere su disco reale nei test
 - **Nessun {{VAR}} rimasto** — l'adapter verifica sempre la sostituzione completa
+
+### Progetti consumer
+Progetti che usano i `core/` files di questo repo e devono essere aggiornati
+quando `core/` cambia (step 5 del Postflight):
+
+| Progetto | Path locale | Layout | Comando update |
+|----------|-------------|--------|----------------|
+| ClaudeCodeTest | `H:\Projects\ClaudeCodeTest` | flat (root) | `rgen --update --flat --target "H:\Projects\ClaudeCodeTest"` |
 
 ---
 
