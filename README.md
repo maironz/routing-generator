@@ -44,9 +44,9 @@ Il tuo progetto                     Routing system generato
                        │   ├── python-style-guide.md
                        │   └── template.py
                        └── esperti/
-                                       ├── esperto_backend.md
-                                       ├── esperto_database.md
-                                       └── esperto_devops.md
+                         ├── esperto_backend.md
+                         ├── esperto_database.md
+                         └── esperto_devops.md
 ```
 
 ### Cosa ottieni

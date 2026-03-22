@@ -83,7 +83,7 @@ quando `core/` cambia (step 5 del Postflight):
 
 | Progetto | Path locale | Layout | Comando update |
 |----------|-------------|--------|----------------|
-| ClaudeCodeTest | `H:\Projects\ClaudeCodeTest` | flat (root) | `rgen --update --flat --target "H:\Projects\ClaudeCodeTest"` |
+| ClaudeCodeTest | `<path-locale>` | flat (root) | `rgen --update --flat --target "<path-locale>"` |
 
 ---
 

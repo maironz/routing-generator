@@ -30,6 +30,7 @@ def runtime_router():
 
 def test_route_query_fallback_allows_repo_exploration(runtime_router, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(runtime_router, "_load_routes", lambda: {})
+    monkeypatch.setattr(runtime_router, "_enrich_with_prior", lambda result, query: result)
 
     result = runtime_router.route_query("zzqv unmatched semantic token")
 
@@ -40,6 +41,7 @@ def test_route_query_fallback_allows_repo_exploration(runtime_router, monkeypatc
 
 
 def test_route_query_high_confidence_keeps_scope_restricted(runtime_router, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(runtime_router, "_enrich_with_prior", lambda result, query: result)
     monkeypatch.setattr(
         runtime_router,
         "_load_routes",
