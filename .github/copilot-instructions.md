@@ -62,13 +62,13 @@ di routing AI per qualsiasi progetto, partendo da pattern esistenti.
 ### Step di sviluppo
 ```
 0 ✅  Scaffolding
-1 ⏳  models.py + backup.py
-2 ⏳  knowledge_base/psm_stack/ + PatternLoader
-3 ⏳  questionnaire.py
-4 ⏳  adapter.py
-5+6 ⏳ writer.py + core files
-7 ⏳  self_checker.py
-8 ⏳  cli.py + integration test
+1 ✅  models.py + backup.py
+2 ✅  knowledge_base/psm_stack/ + PatternLoader
+3 ✅  questionnaire.py
+4 ✅  adapter.py
+5+6 ✅ writer.py + core files
+7 ✅  self_checker.py
+8 ✅  cli.py + integration test
 ```
 
 ### Vincoli critici

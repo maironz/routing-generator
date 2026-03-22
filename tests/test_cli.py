@@ -112,6 +112,7 @@ def test_direct_generates_github_dir(tmp_path: Path) -> None:
     assert (tmp_path / "acme" / ".github" / "routing-map.json").exists()
     assert (tmp_path / "acme" / ".github" / "router.py").exists()
     assert (tmp_path / "acme" / ".github" / "copilot-instructions.md").exists()
+    assert (tmp_path / "acme" / ".github" / "standard" / "README.md").exists()
 
 
 def test_direct_routing_map_is_valid_json(tmp_path: Path) -> None:
@@ -142,6 +143,7 @@ def test_direct_scratch_generates_from_domains(tmp_path: Path) -> None:
         (tmp_path / "scratch" / ".github" / "routing-map.json").read_text(encoding="utf-8")
     )
     assert "api" in routing_map or "auth" in routing_map
+    assert (tmp_path / "scratch" / ".github" / "standard" / "python-style-guide.md").exists()
 
 
 # ---------------------------------------------------------------------------

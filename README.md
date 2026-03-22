@@ -16,7 +16,7 @@
 **Genera automaticamente un sistema di routing AI semantico per qualsiasi progetto.**
 
 [![Python](https://img.shields.io/badge/python-3.12+-blue?logo=python&logoColor=white)](https://python.org)
-[![Tests](https://img.shields.io/badge/tests-82%2F82-brightgreen?logo=pytest&logoColor=white)](tests/)
+[![Tests](https://img.shields.io/badge/tests-91%2F91-brightgreen?logo=pytest&logoColor=white)](tests/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Stdlib only](https://img.shields.io/badge/core-stdlib%20only-orange)](pyproject.toml)
 [![Works with](https://img.shields.io/badge/works%20with-Copilot%20%7C%20Claude%20%7C%20Cursor-blueviolet)](README.md)
@@ -38,8 +38,12 @@ Il tuo progetto                     Routing system generato
    e Redis cache..."               ├── routing-map.json    <- 20+ scenari custom
                                    ├── copilot-instructions.md  <- system prompt
         rgen                       ├── AGENT_REGISTRY.md
-       ─────►                      ├── subagent-brief.md
-                                   └── esperti/
+         ─────►                      ├── subagent-brief.md
+                       ├── standard/
+                       │   ├── general-style.md
+                       │   ├── python-style-guide.md
+                       │   └── template.py
+                       └── esperti/
                                        ├── esperto_backend.md
                                        ├── esperto_database.md
                                        └── esperto_devops.md
@@ -52,6 +56,7 @@ Il tuo progetto                     Routing system generato
 - **Auto self-check** — 8 controlli di integrità post-generazione
 - **Backup automatico** — ogni sovrascrittura viene salvata con timestamp
 - **Pattern riutilizzabili** — costruisci una knowledge base di pattern per team
+- **Standard pack linguistico** — style guide e template base generati in `.github/standard/`
 
 ---
 
@@ -137,7 +142,7 @@ rgen
 
 ```
 [rgen] Backup: 0 file (destinazione vuota)
-[rgen] Scritti: 14 file in ./my-app/.github/
+[rgen] Scritti: 18 file in ./my-app/.github/
 
 Self-Check Report
 =================
@@ -162,6 +167,28 @@ Overall: OK (8/8 checks passed)
 | **Cursor** | Rinomina in `.cursorrules` o usa il system prompt |
 | **Aider** | `aider --system-prompt .github/copilot-instructions.md` |
 | **Qualsiasi LLM** | Copia manualmente il contenuto di `copilot-instructions.md` |
+
+---
+
+## Standard di programmazione generati
+
+Ogni progetto generato include una cartella `.github/standard/` con:
+
+- `general-style.md` per le regole trasversali
+- style guide per i linguaggi rilevati dallo stack
+- template base come `template.py`, `template.ts`, `template.php`, `template.sql`, `template.sh`, `template.ps1`
+
+La selezione è guidata dal tech stack dichiarato:
+
+- `python`, `fastapi`, `django` -> standard Python
+- `javascript`, `node`, `react` -> standard JavaScript
+- `typescript`, `nestjs`, `angular` -> standard TypeScript
+- `php`, `laravel`, `symfony` -> standard PHP
+- `postgres`, `mysql`, `mariadb`, `sqlite` -> standard SQL
+- `docker`, `linux`, `bash` -> standard Bash
+- `powershell`, `windows` -> standard PowerShell
+
+Questo evita che lo stile resti implicito nei singoli agenti e fornisce una base concreta per nuovi file e refactor.
 
 ---
 
@@ -295,7 +322,7 @@ Puoi anche rinominare gli agenti via `RENAME_<AGENT>` nei `template_vars`.
 ## Sviluppo e test
 
 ```bash
-pytest                                         # tutti i test (82/82)
+pytest                                         # tutti i test (91/91)
 pytest --cov=rgen --cov-report=term-missing   # con coverage
 pytest tests/test_cli.py -v                   # integration test
 ```
@@ -320,7 +347,7 @@ routing-generator/
 │   ├── router_planner.py   <- integrazione planner
 │   ├── interventions.py    <- memoria SQLite+FTS5
 │   └── mcp_server.py       <- MCP server 5 tools
-└── tests/                  <- 82 test, tutti con tmp_path
+└── tests/                  <- 91 test, tutti con tmp_path
 ```
 
 ---
