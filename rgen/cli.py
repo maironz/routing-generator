@@ -31,6 +31,8 @@ def main(argv: list[str] | None = None) -> int:
             return _cmd_check(args)
         if args.restore:
             return _cmd_restore(args)
+        if args.update:
+            return _cmd_update(args)
         if args.direct or args.dry_run:
             return _cmd_direct(args)
         return _cmd_interactive(args)
@@ -87,6 +89,70 @@ def _cmd_check(args: argparse.Namespace) -> int:
     overall = "OK" if report.overall else "FAILED"
     print(f"\nRisultato: {overall} — {len(report.passed)} pass, {len(report.warnings)} warn, {len(report.errors)} errori")
     return 0 if report.overall else 1
+
+
+def _cmd_update(args: argparse.Namespace) -> int:
+    """Copies updated core files to an existing project without full regeneration.
+
+    Uses ``--flat`` for projects where core files live directly in the target
+    directory (not in ``.github/``), as in legacy flat-layout projects.
+    """
+    import shutil
+    from rgen.backup import BackupEngine
+    from rgen.writer import Writer
+
+    target = Path(args.target or ".")
+    core = Path(args.core or _DEFAULT_CORE)
+    flat = getattr(args, "flat", False)
+
+    if flat:
+        # Legacy flat layout: core files live directly in target_dir
+        backup_engine = BackupEngine(target / ".rgen-backups")
+        written, errors = [], []
+        for name in Writer.CORE_FILES:
+            src = core / name
+            if not src.exists():
+                print(f"  [SKIP]   {name} (non trovato in core/)")
+                continue
+            dest = target / name
+            try:
+                backup_engine.backup_if_exists(dest)
+                shutil.copy2(src, dest)
+                written.append(name)
+                print(f"  [UPDATE] {name}")
+            except Exception as exc:
+                errors.append(f"{name}: {exc}")
+                print(f"  [ERRORE] {name}: {exc}", file=sys.stderr)
+        if errors:
+            return 1
+        print(f"\n{len(written)} file aggiornati in {target}  (backup in .rgen-backups/)")
+        return 0
+
+    github_dir = target / ".github"
+    if not github_dir.exists():
+        print(
+            f"[ERRORE] Nessuna directory .github trovata in: {target}\n"
+            "Usa 'rgen --direct' per creare un nuovo progetto, o '--flat' per layout root.",
+            file=sys.stderr,
+        )
+        return 2
+
+    writer = Writer(core)
+    result = writer.copy_core_files(target)
+
+    for f in result.files_written:
+        print(f"  [UPDATE] {f.name}")
+    for f in result.files_skipped:
+        print(f"  [SKIP]   {Path(f).name} (non trovato in core/)")
+    for err in result.errors:
+        print(f"  [ERRORE] {err}", file=sys.stderr)
+
+    if result.errors:
+        return 1
+
+    n = len(result.files_written)
+    print(f"\n{n} file aggiornati in {github_dir}  (backup in .github/.rgen-backups/)")
+    return 0
 
 
 def _cmd_restore(args: argparse.Namespace) -> int:
@@ -222,11 +288,13 @@ def _build_parser() -> argparse.ArgumentParser:
     mode.add_argument("--dry-run", dest="dry_run", action="store_true", help="Mostra cosa verrebbe generato senza scrivere")
     mode.add_argument("--check", action="store_true", help="Esegui self-check su progetto esistente")
     mode.add_argument("--restore", action="store_true", help="Ripristina da backup")
+    mode.add_argument("--update", action="store_true", help="Aggiorna i core files in un progetto esistente (senza rigenerare)")
     mode.add_argument("--list-patterns", dest="list_patterns", action="store_true", help="Mostra pattern disponibili")
 
     parser.add_argument("--pattern", help="Pattern ID (es: psm_stack)")
     parser.add_argument("--name", help="Nome del progetto")
     parser.add_argument("--target", help="Directory di output")
+    parser.add_argument("--flat", action="store_true", help="Per --update: copia i core files nella root del target (layout piatto, es. progetti legacy)")
     parser.add_argument("--timestamp", help="Timestamp backup per --restore")
     parser.add_argument("--tech", help="Tecnologie (virgola-separate) per --direct senza pattern")
     parser.add_argument("--domains", help="Domini (virgola-separati) per --direct senza pattern")

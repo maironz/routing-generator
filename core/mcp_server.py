@@ -58,7 +58,8 @@ def route_query(
         mode: Routing mode - "direct" (default), "follow_up" (same session), or "subagent" (for runSubagent)
 
     Returns:
-        JSON with agent, files, context, priority, scenario, capability, and prior_interventions
+        JSON with agent, files, context, priority, scenario, capability,
+        prior_interventions, and repo_exploration policy.
     """
     if mode == "follow_up":
         result = route_follow_up_fn(query)

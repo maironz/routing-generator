@@ -16,7 +16,7 @@
 **Genera automaticamente un sistema di routing AI semantico per qualsiasi progetto.**
 
 [![Python](https://img.shields.io/badge/python-3.12+-blue?logo=python&logoColor=white)](https://python.org)
-[![Tests](https://img.shields.io/badge/tests-77%2F77-brightgreen?logo=pytest&logoColor=white)](tests/)
+[![Tests](https://img.shields.io/badge/tests-91%2F91-brightgreen?logo=pytest&logoColor=white)](tests/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Stdlib only](https://img.shields.io/badge/core-stdlib%20only-orange)](pyproject.toml)
 [![Works with](https://img.shields.io/badge/works%20with-Copilot%20%7C%20Claude%20%7C%20Cursor-blueviolet)](README.md)
@@ -38,11 +38,15 @@ Il tuo progetto                     Routing system generato
    e Redis cache..."               ├── routing-map.json    <- 20+ scenari custom
                                    ├── copilot-instructions.md  <- system prompt
         rgen                       ├── AGENT_REGISTRY.md
-       ─────►                      ├── subagent-brief.md
-                                   └── esperti/
-                                       ├── esperto_backend.md
-                                       ├── esperto_database.md
-                                       └── esperto_devops.md
+         ─────►                      ├── subagent-brief.md
+                       ├── standard/
+                       │   ├── general-style.md
+                       │   ├── python-style-guide.md
+                       │   └── template.py
+                       └── esperti/
+                         ├── esperto_backend.md
+                         ├── esperto_database.md
+                         └── esperto_devops.md
 ```
 
 ### Cosa ottieni
@@ -52,6 +56,7 @@ Il tuo progetto                     Routing system generato
 - **Auto self-check** — 8 controlli di integrità post-generazione
 - **Backup automatico** — ogni sovrascrittura viene salvata con timestamp
 - **Pattern riutilizzabili** — costruisci una knowledge base di pattern per team
+- **Standard pack linguistico** — style guide e template base generati in `.github/standard/`
 
 ---
 
@@ -137,7 +142,7 @@ rgen
 
 ```
 [rgen] Backup: 0 file (destinazione vuota)
-[rgen] Scritti: 14 file in ./my-app/.github/
+[rgen] Scritti: 18 file in ./my-app/.github/
 
 Self-Check Report
 =================
@@ -165,6 +170,28 @@ Overall: OK (8/8 checks passed)
 
 ---
 
+## Standard di programmazione generati
+
+Ogni progetto generato include una cartella `.github/standard/` con:
+
+- `general-style.md` per le regole trasversali
+- style guide per i linguaggi rilevati dallo stack
+- template base come `template.py`, `template.ts`, `template.php`, `template.sql`, `template.sh`, `template.ps1`
+
+La selezione è guidata dal tech stack dichiarato:
+
+- `python`, `fastapi`, `django` -> standard Python
+- `javascript`, `node`, `react` -> standard JavaScript
+- `typescript`, `nestjs`, `angular` -> standard TypeScript
+- `php`, `laravel`, `symfony` -> standard PHP
+- `postgres`, `mysql`, `mariadb`, `sqlite` -> standard SQL
+- `docker`, `linux`, `bash` -> standard Bash
+- `powershell`, `windows` -> standard PowerShell
+
+Questo evita che lo stile resti implicito nei singoli agenti e fornisce una base concreta per nuovi file e refactor.
+
+---
+
 ## Come funziona il router
 
 Il **router semantico** assegna ogni richiesta all'agente piu' competente tramite keyword scoring:
@@ -186,6 +213,56 @@ python .github/router.py --direct "ottimizza query postgres per report mensile"
 ```
 
 L'AI riceve **solo** il file `esperto_database.md` — non tutto il contesto del progetto.
+
+### Bootstrap sessione AI (obbligatorio)
+
+Per evitare risposte non allineate allo stato del router, all'inizio di ogni sessione operativa esegui:
+
+```bash
+python .github/router.py --stats
+```
+
+Poi pubblica sempre un header iniziale con:
+
+```text
+🤖 GPT-5.3-Codex | Agente: <agent> | Priorita': <priority> | Routing: <stats + stato>
+```
+
+Esempio reale di stato router:
+
+```text
+Routing: 15scn/184kw | overlap:2.7% | router:574L | map:7.4KB | [OK] OK
+```
+
+Per ogni nuova richiesta, instrada prima il task:
+
+```bash
+python .github/router.py --direct "<query>"
+# oppure
+python .github/router.py --follow-up "<query>"
+```
+
+### Policy di esplorazione repo
+
+Il routing via MCP e router CLI non e' una sandbox blindata: e' un filtro operativo iniziale.
+
+Regola consigliata:
+
+1. Parti sempre dai file instradati dal router
+2. Mantieni scope ridotto se la confidence e' sopra soglia
+3. Allarga all'intero repo solo come fallback controllato
+
+Il router espone ora una policy `repo_exploration` con confidence gate esplicito:
+
+- `allowed: false` quando il match e' sufficientemente affidabile
+- `allowed: true` quando non c'e' match, il routing e' ambiguo, oppure la confidence e' sotto soglia
+
+Trigger ammessi per passare alla ricerca repo-wide:
+
+- nessuno scenario matchato
+- routing ambiguo
+- confidence sotto soglia
+- file instradati insufficienti o incoerenti con il repo reale
 
 ---
 
@@ -245,7 +322,7 @@ Puoi anche rinominare gli agenti via `RENAME_<AGENT>` nei `template_vars`.
 ## Sviluppo e test
 
 ```bash
-pytest                                         # tutti i test (77/77)
+pytest                                         # tutti i test (91/91)
 pytest --cov=rgen --cov-report=term-missing   # con coverage
 pytest tests/test_cli.py -v                   # integration test
 ```
@@ -270,7 +347,7 @@ routing-generator/
 │   ├── router_planner.py   <- integrazione planner
 │   ├── interventions.py    <- memoria SQLite+FTS5
 │   └── mcp_server.py       <- MCP server 5 tools
-└── tests/                  <- 77 test, tutti con tmp_path
+└── tests/                  <- 91 test, tutti con tmp_path
 ```
 
 ---
@@ -285,7 +362,9 @@ pip install mcp[cli]>=1.0.0
 python .github/mcp_server.py
 ```
 
-5 tools disponibili: `route_query`, `get_expert`, `list_scenarios`, `router_stats`, `audit_coverage`.
+5 tools disponibili: `route_query`, `search_history`, `log_intervention`, `get_stats`, `audit_coverage`.
+
+`route_query` restituisce anche la policy `repo_exploration`, utile per decidere se restare nei file instradati o aprire la ricerca all'intero repository.
 
 ---
 

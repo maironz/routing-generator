@@ -28,6 +28,7 @@ from interventions import InterventionStore
 
 ROUTING_MAP = Path(__file__).parent / "routing-map.json"
 SUBAGENT_BRIEF = Path(__file__).parent / "subagent-brief.md"
+CONFIDENCE_GATE = 0.55
 
 # Agent → expert file mapping (single source of truth)
 AGENT_EXPERT_MAP = {
@@ -44,6 +45,13 @@ SUBAGENT_CONSTRAINTS = [
     "Sync VM↔NAS disabilitato — VM è source of truth",
     "Samba/CIFS first: modificare file da Windows (Z:\\), SSH solo per runtime",
     "Backup prima di modifiche production",
+]
+
+REPO_EXPLORATION_TRIGGERS = [
+    "nessun scenario matchato",
+    "routing ambiguo",
+    "confidence sotto soglia",
+    "file instradati insufficienti o incoerenti con il repo reale",
 ]
 
 
@@ -225,6 +233,55 @@ def _build_clarification_payload(scored: list[dict], mode: str) -> dict:
             ],
             "candidates": cands,
         },
+        "repo_exploration": _build_repo_exploration_policy(
+            mode=mode,
+            confidence=0.0,
+            ambiguous=True,
+        ),
+    }
+
+
+def _build_repo_exploration_policy(
+    mode: str,
+    confidence: float,
+    *,
+    fallback: bool = False,
+    ambiguous: bool = False,
+) -> dict:
+    """Describe when the agent may widen search from routed files to the full repo."""
+    if fallback:
+        return {
+            "allowed": True,
+            "recommended_scope": "repo-fallback",
+            "reason": "Nessuno scenario ha matchato la query: e' consentita esplorazione repo per autocorrezione.",
+            "confidence_gate": CONFIDENCE_GATE,
+            "triggers": REPO_EXPLORATION_TRIGGERS,
+        }
+
+    if ambiguous:
+        return {
+            "allowed": True,
+            "recommended_scope": "clarify-then-repo-search",
+            "reason": "Routing ambiguo: chiarisci il dominio o amplia la ricerca se i file instradati non bastano.",
+            "confidence_gate": CONFIDENCE_GATE,
+            "triggers": REPO_EXPLORATION_TRIGGERS,
+        }
+
+    if confidence < CONFIDENCE_GATE:
+        return {
+            "allowed": True,
+            "recommended_scope": "routed-files-then-repo-search",
+            "reason": "Confidence sotto soglia: parti dai file instradati e allarga al repo solo se emergono contraddizioni o buchi.",
+            "confidence_gate": CONFIDENCE_GATE,
+            "triggers": REPO_EXPLORATION_TRIGGERS,
+        }
+
+    return {
+        "allowed": False,
+        "recommended_scope": "routed-files-only",
+        "reason": "Confidence sufficiente: usa prima i file instradati e amplia solo se il contesto reale li smentisce.",
+        "confidence_gate": CONFIDENCE_GATE,
+        "triggers": REPO_EXPLORATION_TRIGGERS,
     }
 
 
@@ -240,7 +297,13 @@ def route_query(query: str) -> dict:
             "context": "Fallback generico — nessuno scenario matchato",
             "priority": "low",
             "scenario": "_fallback",
-            "mode": "direct"
+            "mode": "direct",
+            "confidence": 0.0,
+            "repo_exploration": _build_repo_exploration_policy(
+                mode="direct",
+                confidence=0.0,
+                fallback=True,
+            ),
         }
 
     top = scored[0]
@@ -255,6 +318,11 @@ def route_query(query: str) -> dict:
         amb = _build_clarification_payload(scored, mode="direct")
         amb["confidence"] = confidence
         amb["routing_debug"] = routing_debug
+        amb["repo_exploration"] = _build_repo_exploration_policy(
+            mode="direct",
+            confidence=confidence,
+            ambiguous=True,
+        )
         amb = _enrich_with_prior(amb, query)
         return amb
 
@@ -267,7 +335,11 @@ def route_query(query: str) -> dict:
         "score": score,
         "confidence": confidence,
         "routing_debug": routing_debug,
-        "mode": "direct"
+        "mode": "direct",
+        "repo_exploration": _build_repo_exploration_policy(
+            mode="direct",
+            confidence=confidence,
+        ),
     }
 
     # Capability layer: extract if defined
@@ -298,7 +370,13 @@ def route_follow_up(query: str) -> dict:
             "files": [AGENT_EXPERT_MAP["orchestratore"]],
             "context": "Follow-up fallback",
             "priority": "low",
-            "mode": "follow-up"
+            "mode": "follow-up",
+            "confidence": 0.0,
+            "repo_exploration": _build_repo_exploration_policy(
+                mode="follow-up",
+                confidence=0.0,
+                fallback=True,
+            ),
         }
 
     top = scored[0]
@@ -312,6 +390,11 @@ def route_follow_up(query: str) -> dict:
         amb = _build_clarification_payload(scored, mode="follow-up")
         amb["confidence"] = confidence
         amb["routing_debug"] = routing_debug
+        amb["repo_exploration"] = _build_repo_exploration_policy(
+            mode="follow-up",
+            confidence=confidence,
+            ambiguous=True,
+        )
         amb = _enrich_with_prior(amb, query)
         return amb
 
@@ -329,7 +412,11 @@ def route_follow_up(query: str) -> dict:
         "confidence": confidence,
         "routing_debug": routing_debug,
         "mode": "follow-up",
-        "note": "Solo file agente — contesto base già in sessione"
+        "note": "Solo file agente — contesto base già in sessione",
+        "repo_exploration": _build_repo_exploration_policy(
+            mode="follow-up",
+            confidence=confidence,
+        ),
     }
 
     # Capability layer: maintain from scenario if same session
@@ -361,12 +448,14 @@ def route_subagent(query: str) -> dict:
         agent = "orchestratore"
         context = "Generic subagent task"
         scenario_key = "_fallback"
+        confidence = 0.0
     else:
         top = scored[0]
         scenario_key = top["scenario"]
         best = top["data"]
         agent = best.get("agent", "orchestratore")
         context = best.get("context", "")
+        confidence = _compute_confidence(scored)
 
     expert_file = AGENT_EXPERT_MAP.get(agent)
 
@@ -383,6 +472,12 @@ def route_subagent(query: str) -> dict:
         "subagent_brief": ".github/subagent-brief.md",
         "subagent_prompt_prefix": prompt_prefix,
         "constraints": SUBAGENT_CONSTRAINTS,
+        "confidence": confidence,
+        "repo_exploration": _build_repo_exploration_policy(
+            mode="subagent",
+            confidence=confidence,
+            fallback=not scored,
+        ),
         "usage": (
             "Include subagent_prompt_prefix at the start of your runSubagent prompt. "
             "Read subagent-brief.md ONLY if the subagent needs project structure knowledge. "

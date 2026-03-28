@@ -192,7 +192,9 @@ def adapter_kb(tmp_path: Path) -> Path:
     }
     (p / "routing-map.json").write_text(json.dumps(routing), encoding="utf-8")
     (experts / "esperto_developer.md").write_text("# Developer\n## Stack\n{{TECH}}\nProject: {{PROJECT_NAME}}", encoding="utf-8")
+    (experts / "esperto_developer_extended.md").write_text("# Developer Extended\nSee esperto_developer.md", encoding="utf-8")
     (experts / "esperto_ops.md").write_text("# Ops\n## Stack\ndocker", encoding="utf-8")
+    (experts / "MODULARIZATION-STRATEGY.md").write_text("# Strategy\nPattern details", encoding="utf-8")
     return tmp_path / "knowledge_base"
 
 
@@ -248,6 +250,28 @@ def test_adapt_generates_expert_file_with_substitution(adapter_kb: Path, base_pr
     assert "{{TECH}}" not in expert
 
 
+def test_adapt_copies_all_expert_markdown_files(adapter_kb: Path, base_profile: ProjectProfile) -> None:
+    adapter = Adapter(adapter_kb)
+    result = adapter.adapt(base_profile)
+
+    assert ".github/esperti/esperto_developer_extended.md" in result
+    assert ".github/esperti/MODULARIZATION-STRATEGY.md" in result
+
+
+def test_adapt_renames_extended_expert_filename(adapter_kb: Path, tmp_path: Path) -> None:
+    profile = ProjectProfile(
+        project_name="x",
+        target_path=tmp_path,
+        pattern_id="base_pattern",
+        template_vars={"PROJECT_NAME": "x", "RENAME_DEVELOPER": "backend"},
+    )
+    adapter = Adapter(adapter_kb)
+    result = adapter.adapt(profile)
+
+    assert ".github/esperti/esperto_backend_extended.md" in result
+    assert ".github/esperti/esperto_developer_extended.md" not in result
+
+
 def test_adapt_generates_agent_registry(adapter_kb: Path, base_profile: ProjectProfile) -> None:
     adapter = Adapter(adapter_kb)
     result = adapter.adapt(base_profile)
@@ -264,12 +288,25 @@ def test_adapt_generates_copilot_instructions(adapter_kb: Path, base_profile: Pr
     ci = result[".github/copilot-instructions.md"]
     assert "acme" in ci
     assert "router.py" in ci
+    assert ".github/standard/README.md" in ci
 
 
 def test_adapt_generates_subagent_brief(adapter_kb: Path, base_profile: ProjectProfile) -> None:
     adapter = Adapter(adapter_kb)
     result = adapter.adapt(base_profile)
     assert ".github/subagent-brief.md" in result
+
+
+def test_adapt_generates_standard_pack_from_pattern_stack(adapter_kb: Path, base_profile: ProjectProfile) -> None:
+    adapter = Adapter(adapter_kb)
+    result = adapter.adapt(base_profile)
+
+    assert ".github/standard/README.md" in result
+    assert ".github/standard/general-style.md" in result
+    assert ".github/standard/python-style-guide.md" in result
+    assert ".github/standard/template.py" in result
+    assert ".github/standard/bash-style-guide.md" in result
+    assert ".github/standard/template.sh" in result
 
 
 # ---------------------------------------------------------------------------
@@ -290,6 +327,80 @@ def test_adapt_scratch_no_pattern_id(adapter_kb: Path, tmp_path: Path) -> None:
     assert "api" in routing
     assert "auth" in routing
     assert "troubleshooting" in routing
+
+
+def test_adapt_scratch_generates_structured_expert_markdown(adapter_kb: Path, tmp_path: Path) -> None:
+    profile = ProjectProfile(
+        project_name="scratch",
+        target_path=tmp_path,
+        pattern_id="",
+        tech_stack=["python", "fastapi"],
+        domain_keywords=["api"],
+    )
+    adapter = Adapter(adapter_kb)
+    result = adapter.adapt(profile)
+
+    expert_md = result[".github/esperti/esperto_developer.md"]
+    assert "## Missione" in expert_md
+    assert "## Ambiti Coperti" in expert_md
+    assert "## Workflow Operativo" in expert_md
+    assert "## Deliverable Attesi" in expert_md
+    assert "## Capability Blocks" in expert_md
+    assert "<!-- CAPABILITY:DEBUG -->" in expert_md
+    assert "<!-- CAPABILITY:OPTIMIZE -->" in expert_md
+    assert "<!-- CAPABILITY:SECURITY_AUDIT -->" in expert_md
+    assert "<!-- CAPABILITY:TESTING -->" in expert_md
+
+    assert ".github/standard/README.md" in result
+    assert ".github/standard/python-style-guide.md" in result
+    assert ".github/standard/template.py" in result
+
+
+def test_adapt_scratch_adds_db_performance_only_for_database_stack(adapter_kb: Path, tmp_path: Path) -> None:
+    with_db = ProjectProfile(
+        project_name="db-app",
+        target_path=tmp_path / "with-db",
+        pattern_id="",
+        tech_stack=["python", "postgresql"],
+        domain_keywords=["api"],
+    )
+    without_db = ProjectProfile(
+        project_name="web-app",
+        target_path=tmp_path / "without-db",
+        pattern_id="",
+        tech_stack=["python", "fastapi"],
+        domain_keywords=["api"],
+    )
+
+    adapter = Adapter(adapter_kb)
+
+    with_db_result = adapter.adapt(with_db)
+    without_db_result = adapter.adapt(without_db)
+
+    assert "<!-- CAPABILITY:DB_PERFORMANCE -->" in with_db_result[".github/esperti/esperto_developer.md"]
+    assert "<!-- CAPABILITY:DB_PERFORMANCE -->" not in without_db_result[".github/esperti/esperto_developer.md"]
+    assert ".github/standard/sql-style-guide.md" in with_db_result
+    assert ".github/standard/template.sql" in with_db_result
+    assert ".github/standard/sql-style-guide.md" not in without_db_result
+
+
+def test_generated_registry_contains_overview_and_scenario_column(adapter_kb: Path, base_profile: ProjectProfile) -> None:
+    adapter = Adapter(adapter_kb)
+    result = adapter.adapt(base_profile)
+
+    registry = result[".github/AGENT_REGISTRY.md"]
+    assert "## Panoramica" in registry
+    assert "| Agent | Domain | Version | Status | Scenari | File |" in registry
+
+
+def test_generated_subagent_brief_contains_task_template(adapter_kb: Path, base_profile: ProjectProfile) -> None:
+    adapter = Adapter(adapter_kb)
+    result = adapter.adapt(base_profile)
+
+    brief = result[".github/subagent-brief.md"]
+    assert "## Contesto" in brief
+    assert "## Agenti Disponibili" in brief
+    assert "## Template di Incarico" in brief
 
 
 # ---------------------------------------------------------------------------

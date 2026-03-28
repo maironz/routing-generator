@@ -112,6 +112,7 @@ def test_direct_generates_github_dir(tmp_path: Path) -> None:
     assert (tmp_path / "acme" / ".github" / "routing-map.json").exists()
     assert (tmp_path / "acme" / ".github" / "router.py").exists()
     assert (tmp_path / "acme" / ".github" / "copilot-instructions.md").exists()
+    assert (tmp_path / "acme" / ".github" / "standard" / "README.md").exists()
 
 
 def test_direct_routing_map_is_valid_json(tmp_path: Path) -> None:
@@ -142,6 +143,7 @@ def test_direct_scratch_generates_from_domains(tmp_path: Path) -> None:
         (tmp_path / "scratch" / ".github" / "routing-map.json").read_text(encoding="utf-8")
     )
     assert "api" in routing_map or "auth" in routing_map
+    assert (tmp_path / "scratch" / ".github" / "standard" / "python-style-guide.md").exists()
 
 
 # ---------------------------------------------------------------------------
@@ -152,3 +154,54 @@ def test_parser_modes_are_mutually_exclusive() -> None:
     parser = _build_parser()
     with pytest.raises(SystemExit):
         parser.parse_args(["--direct", "--dry-run"])
+
+
+# ---------------------------------------------------------------------------
+# --update
+# ---------------------------------------------------------------------------
+
+def test_update_copies_core_files_to_existing_project(
+    tmp_path: Path, capsys: pytest.CaptureFixture
+) -> None:
+    (tmp_path / ".github").mkdir()
+    ret = main(["--update", "--target", str(tmp_path)])
+    assert ret == 0
+    out = capsys.readouterr().out
+    assert "aggiornati" in out
+    assert (tmp_path / ".github" / "router.py").exists()
+
+
+def test_update_fails_when_no_github_dir(
+    tmp_path: Path, capsys: pytest.CaptureFixture
+) -> None:
+    ret = main(["--update", "--target", str(tmp_path)])
+    assert ret == 2
+    err = capsys.readouterr().err
+    assert ".github" in err
+
+
+def test_update_creates_backup(tmp_path: Path) -> None:
+    gh = tmp_path / ".github"
+    gh.mkdir()
+    (gh / "router.py").write_text("# old content")
+    ret = main(["--update", "--target", str(tmp_path)])
+    assert ret == 0
+    backup_root = gh / ".rgen-backups"
+    assert backup_root.exists()
+    backup_slots = list(backup_root.iterdir())
+    assert len(backup_slots) >= 1
+
+
+def test_update_flat_copies_to_root(tmp_path: Path, capsys: pytest.CaptureFixture) -> None:
+    ret = main(["--update", "--flat", "--target", str(tmp_path)])
+    assert ret == 0
+    out = capsys.readouterr().out
+    assert "aggiornati" in out
+    assert (tmp_path / "router.py").exists()
+
+
+def test_update_flat_creates_backup_in_root(tmp_path: Path) -> None:
+    (tmp_path / "router.py").write_text("# old")
+    ret = main(["--update", "--flat", "--target", str(tmp_path)])
+    assert ret == 0
+    assert (tmp_path / ".rgen-backups").exists()
